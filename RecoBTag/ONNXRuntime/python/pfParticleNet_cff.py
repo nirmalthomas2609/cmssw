@@ -6,6 +6,7 @@ from RecoBTag.ONNXRuntime.particleNetSonicJetTagsProducer_cfi import particleNet
 from RecoBTag.ONNXRuntime.pfParticleNetDiscriminatorsJetTags_cfi import pfParticleNetDiscriminatorsJetTags
 from RecoBTag.ONNXRuntime.pfMassDecorrelatedParticleNetDiscriminatorsJetTags_cfi import pfMassDecorrelatedParticleNetDiscriminatorsJetTags
 from Configuration.ProcessModifiers.particleNetSonicTriton_cff import particleNetSonicTriton
+from Configuration.ProcessModifiers.particleNetPTSonicTriton_cff import particleNetPTSonicTriton
 
 pfParticleNetTagInfos = pfDeepBoostedJetTagInfos.clone(
     use_puppiP4 = False
@@ -37,6 +38,14 @@ particleNetSonicTriton.toReplaceWith(pfParticleNetJetTags, _particleNetSonicJetT
     flav_names = pfParticleNetJetTags.flav_names,
 ))
 
+(particleNetSonicTriton & particleNetPTSonicTriton).toModify(pfParticleNetJetTags,
+    preprocess_json = 'RecoBTag/Combined/data/ParticleNetAK8/General/V01/preprocess_PT.json',
+    Client = dict(
+        modelName = "particlenet_PT",
+        modelConfigPath = cms.FileInPath("HeterogeneousCore/SonicTriton/data/models/particlenet_PT/config.pbtxt"),
+    )
+)
+
 pfMassDecorrelatedParticleNetJetTags = boostedJetONNXJetTagsProducer.clone(
     src = 'pfParticleNetTagInfos',
     preprocess_json = 'RecoBTag/Combined/data/ParticleNetAK8/MD-2prong/V01/preprocess.json',
@@ -60,6 +69,14 @@ particleNetSonicTriton.toReplaceWith(pfMassDecorrelatedParticleNetJetTags, _part
     flav_names = pfMassDecorrelatedParticleNetJetTags.flav_names,
 ))
 
+(particleNetSonicTriton & particleNetPTSonicTriton).toModify(pfMassDecorrelatedParticleNetJetTags,
+    preprocess_json = 'RecoBTag/Combined/data/ParticleNetAK8/MD-2prong/V01/preprocess_PT.json',
+    Client = dict(
+        modelName = "particlenet_AK8_MD-2prong_PT",
+        modelConfigPath = cms.FileInPath("HeterogeneousCore/SonicTriton/data/models/particlenet_AK8_MD-2prong_PT/config.pbtxt"),
+    )
+)
+
 pfParticleNetMassRegressionJetTags = boostedJetONNXJetTagsProducer.clone(
     src = 'pfParticleNetTagInfos',
     preprocess_json = 'RecoBTag/Combined/data/ParticleNetAK8/MassRegression/V01/preprocess.json',
@@ -81,6 +98,14 @@ particleNetSonicTriton.toReplaceWith(pfParticleNetMassRegressionJetTags, _partic
     ),
     flav_names = pfParticleNetMassRegressionJetTags.flav_names,
 ))
+
+(particleNetSonicTriton & particleNetPTSonicTriton).toModify(pfParticleNetMassRegressionJetTags,
+    preprocess_json = 'RecoBTag/Combined/data/ParticleNetAK8/MassRegression/V01/preprocess_PT.json',
+    Client = dict(
+        modelName = "particlenet_AK8_MassRegression_PT",
+        modelConfigPath = cms.FileInPath("HeterogeneousCore/SonicTriton/data/models/particlenet_AK8_MassRegression_PT/config.pbtxt"),
+    )
+)
 
 from CommonTools.PileupAlgos.Puppi_cff import puppi
 from PhysicsTools.PatAlgos.slimming.primaryVertexAssociation_cfi import primaryVertexAssociation

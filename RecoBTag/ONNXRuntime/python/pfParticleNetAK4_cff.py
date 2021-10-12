@@ -5,6 +5,7 @@ from RecoBTag.ONNXRuntime.boostedJetONNXJetTagsProducer_cfi import boostedJetONN
 from RecoBTag.ONNXRuntime.particleNetSonicJetTagsProducer_cfi import particleNetSonicJetTagsProducer as _particleNetSonicJetTagsProducer
 from RecoBTag.ONNXRuntime.pfParticleNetAK4DiscriminatorsJetTags_cfi import pfParticleNetAK4DiscriminatorsJetTags
 from Configuration.ProcessModifiers.particleNetSonicTriton_cff import particleNetSonicTriton
+from Configuration.ProcessModifiers.particleNetPTSonicTriton_cff import particleNetPTSonicTriton
 
 pfParticleNetAK4TagInfos = pfDeepBoostedJetTagInfos.clone(
     jet_radius = 0.4,
@@ -36,6 +37,14 @@ particleNetSonicTriton.toReplaceWith(pfParticleNetAK4JetTags, _particleNetSonicJ
     ),
     flav_names = pfParticleNetAK4JetTags.flav_names,
 ))
+
+(particleNetSonicTriton & particleNetPTSonicTriton).toModify(pfParticleNetAK4JetTags,
+    preprocess_json = 'RecoBTag/Combined/data/ParticleNetAK4/CHS/V00/preprocess_PT.json',
+    Client = dict(
+        modelName = "particlenet_AK4_PT",
+        modelConfigPath = cms.FileInPath("HeterogeneousCore/SonicTriton/data/models/particlenet_AK4_PT/config.pbtxt"),
+    )
+)
 
 from CommonTools.PileupAlgos.Puppi_cff import puppi
 from PhysicsTools.PatAlgos.slimming.primaryVertexAssociation_cfi import primaryVertexAssociation
