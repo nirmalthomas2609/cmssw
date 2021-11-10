@@ -136,6 +136,9 @@ STARTED_INDICATOR="Started GRPCInferenceService"
 SEGFAULT_INDICATOR="Address already in use"
 EXTRA=""
 COMPAT_SCRIPT=/etc/shinit_v2
+PRELOADS=""
+TRITON_LIBRARY_PATH=/usr/local/cuda/compat/lib:/usr/local/nvidia/lib:/usr/local/nvidia/lib64
+TRITON_PYTORCH_PATH=/opt/tritonserver/backends/pytorch
 
 compute_ports(){
 	# compute derived port numbers
@@ -201,6 +204,7 @@ start_docker(){
 	$DRYRUN $DOCKER run -d --name ${SERVER} \
 		--shm-size=1g --ulimit memlock=-1 --ulimit stack=67108864 --ipc="host" --cap-add=IPC_OWNER \
 		-p${HTTPPORT}:${HTTPPORT} -p${GRPCPORT}:${GRPCPORT} -p${METRPORT}:${METRPORT} $EXTRA $MOUNTARGS \
+		--env LD_LIBRARY_PATH="$TRITON_PYTORCH_PATH:$TRITON_LIBRARY_PATH" $PRELOADS \
 		${IMAGE} tritonserver $PORTARGS $REPOARGS $VERBOSE
 }
 
@@ -258,6 +262,7 @@ start_singularity(){
 		REDIR=/dev/stdout
 	fi
 	$DRYRUN singularity run instance://${SERVER} \
+		--env LD_LIBRARY_PATH="$TRITON_PYTORCH_PATH:$TRITON_LIBRARY_PATH" $PRELOADS \
 		tritonserver $PORTARGS $REPOARGS $VERBOSE >& ${REDIR} &
 	[ -z "$DRYRUN" ] || wait
 }
@@ -330,6 +335,20 @@ list_models(){
 	done
 	# make unique list
 	read -a REPOS <<< "$(printf "%s\n" "${REPOS[@]}" | sort -u | tr '\n' ' ')"
+	# make list of shared libraries containing custom ops
+	shopt -s nullglob
+	for REPO in ${REPOS[@]}; do
+		for MODEL in ${REPO}/*/; do
+			for OPLIB in ${MODEL}/*.so; do
+				if [ -n "$OPLIB" ]; then
+					PRELOADS="${PRELOADS:+$PRELOADS }$(readlink -f $OPLIB)"
+				fi
+			done
+		done
+	done
+	if [ -n "$PRELOADS" ]; then
+		PRELOADS='--env LD_PRELOAD='"$PRELOADS"
+	fi
 }
 
 auto_stop(){
