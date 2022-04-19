@@ -128,7 +128,9 @@ fi
 
 SANDBOX=$(get_sandbox)
 SANDBOX=$(readlink -f ${SANDBOX})
-DOCKER="sudo docker"
+if [ -z "$DOCKER" ]; then
+	DOCKER="sudo docker"
+fi
 LOG="log_${SERVER}.log"
 STOPLOG="log_stop_${SERVER}.log"
 LIB=lib
@@ -401,15 +403,18 @@ scram_tag(){
 }
 
 driver_docker(){
-	docker run --rm --entrypoint env ${IMAGE} | grep "CUDA_DRIVER_VERSION="
+	$DOCKER run --rm --entrypoint env ${IMAGE} | grep "CUDA_DRIVER_VERSION="
 }
 
 driver_singularity(){
-	source ${SANDBOX}/.singularity.d/env/10-docker2singularity.sh && echo $CUDA_DRIVER_VERSION
+	D2S=${SANDBOX}/.singularity.d/env/10-docker2singularity.sh
+	if [ -f "$D2S" ]; then
+		source $D2S && echo $CUDA_DRIVER_VERSION
+	fi
 }
 
 compat_docker(){
-	docker cp $(docker create --rm ${IMAGE}):${COMPAT_SCRIPT} .
+	$DOCKER cp $($DOCKER create --rm ${IMAGE}):${COMPAT_SCRIPT} .
 }
 
 compat_singularity(){
@@ -457,8 +462,12 @@ check_drivers(){
 		if [ "$PWD" == "$TMPDIR" ]; then
 			$DRYRUN $COMPAT_FN
 			COMPAT_SCRIPT_BASE=$(basename $COMPAT_SCRIPT)
-			$DRYRUN sed -i 's/LD_LIBRARY_PATH="${_CUDA_COMPAT_REALLIB}"/&; LD_PRELOAD=""/' $COMPAT_SCRIPT_BASE
-			COMPAT_SCRIPT_MOUNT="$COMPAT_SCRIPT_BASE:$COMPAT_SCRIPT"
+			# newer containers already include this fix, no need to do it twice
+			if ! grep -Fq 'LD_PRELOAD=""' $COMPAT_SCRIPT_BASE; then
+				$DRYRUN sed -i 's/LD_LIBRARY_PATH="${_CUDA_COMPAT_REALLIB}"/&; LD_PRELOAD=""/' $COMPAT_SCRIPT_BASE
+				COMPAT_SCRIPT_PATH=$(readlink -f $TMPDIR/$COMPAT_SCRIPT_BASE)
+				COMPAT_SCRIPT_MOUNT="$COMPAT_SCRIPT_PATH:$COMPAT_SCRIPT"
+			fi
 		fi
 		return 0
 	else
