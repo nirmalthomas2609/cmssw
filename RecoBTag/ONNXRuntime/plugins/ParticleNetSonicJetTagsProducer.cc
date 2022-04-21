@@ -142,6 +142,8 @@ void ParticleNetSonicJetTagsProducer::acquire(edm::Event const &iEvent, edm::Eve
       maxVertices =
           std::max(maxVertices, static_cast<unsigned int>(((*tag_infos)[jet_n]).features().get("sv_etarel").size()));
     }
+    cout<<"Computed max particles = "<<maxParticles<<endl;
+    cout<<"Computed max vertices = "<<maxVertices<<endl;
     if (maxParticles == 0 && maxVertices == 0) {
       client_->setBatchSize(0);
       skippedInference_ = true;
