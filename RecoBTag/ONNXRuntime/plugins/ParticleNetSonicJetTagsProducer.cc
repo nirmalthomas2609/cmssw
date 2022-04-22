@@ -160,6 +160,12 @@ void ParticleNetSonicJetTagsProducer::acquire(edm::Event const &iEvent, edm::Eve
       const auto &group_name = input_names_[igroup];
       auto &input = iInput.at(group_name);
       unsigned target;
+      std::cout<<"Group name = "<<group_name<<std::endl;
+      std::cout<<"Printing original shape of input -- ";
+      for(int i = 0; i < input.shape().size(); i++){
+        std::cout<<input.shape()[i]<<" ";
+      }
+      std::cout<<std::endl;
       if (igroup < numParticleGroups_) {
         input.setShape(1, maxParticles);
         target = maxParticles;
@@ -167,6 +173,11 @@ void ParticleNetSonicJetTagsProducer::acquire(edm::Event const &iEvent, edm::Eve
         input.setShape(1, maxVertices);
         target = maxVertices;
       }
+      std::cout<<"Printing original shape of input -- ";
+      for(int i = 0; i < input.shape().size(); i++){
+        std::cout<<input.shape()[i]<<" ";
+      }
+      std::cout<<std::endl<<std::endl;
       auto tdata = input.allocate<float>(true);
       for (unsigned jet_n = 0; jet_n < tag_infos->size(); ++jet_n) {
         const auto &taginfo = (*tag_infos)[jet_n];
@@ -193,7 +204,7 @@ void ParticleNetSonicJetTagsProducer::acquire(edm::Event const &iEvent, edm::Eve
             input_shapes_[igroup][2] = insize;
           }
 
-          debug_ = true;
+          debug_ = false;
 
           if (debug_) {
             std::cout << " -- var=" << varname << ", center=" << info.center << ", scale=" << info.norm_factor
@@ -259,7 +270,7 @@ void ParticleNetSonicJetTagsProducer::produce(edm::Event &iEvent,
     }
   }
 
-  debug_ = true;
+  debug_ = false;
 
   if (debug_) {
     std::cout << "=== " << iEvent.id().run() << ":" << iEvent.id().luminosityBlock() << ":" << iEvent.id().event()
