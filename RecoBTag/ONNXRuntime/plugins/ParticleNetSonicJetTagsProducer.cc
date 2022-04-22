@@ -193,6 +193,8 @@ void ParticleNetSonicJetTagsProducer::acquire(edm::Event const &iEvent, edm::Eve
             input_shapes_[igroup][2] = insize;
           }
 
+          debug_ = true;
+
           if (debug_) {
             std::cout << " -- var=" << varname << ", center=" << info.center << ", scale=" << info.norm_factor
                       << ", replace=" << info.replace_inf_value << ", pad=" << info.pad << std::endl;
@@ -256,6 +258,8 @@ void ParticleNetSonicJetTagsProducer::produce(edm::Event &iEvent,
       }
     }
   }
+
+  debug_ = true;
 
   if (debug_) {
     std::cout << "=== " << iEvent.id().run() << ":" << iEvent.id().luminosityBlock() << ":" << iEvent.id().event()
