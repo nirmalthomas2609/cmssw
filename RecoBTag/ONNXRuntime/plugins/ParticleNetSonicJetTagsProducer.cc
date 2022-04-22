@@ -53,7 +53,7 @@ private:
 };
 
 ParticleNetSonicJetTagsProducer::ParticleNetSonicJetTagsProducer(const edm::ParameterSet &iConfig)
-    : TritonEDProducer<>(iConfig),
+    : TritonEDProducer<>(iConfig, "ParticleNetSonicJetTagsProducer"),
       src_(consumes<TagInfoCollection>(iConfig.getParameter<edm::InputTag>("src"))),
       flav_names_(iConfig.getParameter<std::vector<std::string>>("flav_names")),
       debug_(iConfig.getUntrackedParameter<bool>("debugMode", false)) {
@@ -132,37 +132,39 @@ void ParticleNetSonicJetTagsProducer::acquire(edm::Event const &iEvent, edm::Eve
   client_->setBatchSize(tag_infos->size());
   skippedInference_ = false;
   if (!tag_infos->empty()) {
-    unsigned int maxParticles = 0;
-    unsigned int maxVertices = 0;
-    for (unsigned jet_n = 0; jet_n < tag_infos->size(); ++jet_n) {
-      maxParticles = std::max(maxParticles,
-                              static_cast<unsigned int>(((*tag_infos)[jet_n]).features().get("pfcand_etarel").size()));
-      maxVertices =
-          std::max(maxVertices, static_cast<unsigned int>(((*tag_infos)[jet_n]).features().get("sv_etarel").size()));
-    }
-    if (maxParticles == 0 && maxVertices == 0) {
-      client_->setBatchSize(0);
-      skippedInference_ = true;
-      return;
-    }
     unsigned int minPartFromJSON = prep_info_map_.at(input_names_[0]).min_length;
     unsigned int maxPartFromJSON = prep_info_map_.at(input_names_[0]).max_length;
     unsigned int minVertFromJSON = prep_info_map_.at(input_names_[3]).min_length;
     unsigned int maxVertFromJSON = prep_info_map_.at(input_names_[3]).max_length;
-    maxParticles = std::clamp(maxParticles, minPartFromJSON, maxPartFromJSON);
-    maxVertices = std::clamp(maxVertices, minVertFromJSON, maxVertFromJSON);
+    bool toSkipInference = true;
 
     for (unsigned igroup = 0; igroup < input_names_.size(); ++igroup) {
       const auto &group_name = input_names_[igroup];
       auto &input = iInput.at(group_name);
       unsigned target;
-      if (igroup < numParticleGroups_) {
-        input.setShape(1, maxParticles);
-        target = maxParticles;
-      } else {
-        input.setShape(1, maxVertices);
-        target = maxVertices;
+      for(unsigned jet_n = 0; jet_n < tag_infos->size(); ++jet_n){
+        if (igroup == 0){
+          unsigned entry_target;
+          if (igroup < numParticleGroups_) {
+            entry_target = std::clamp(static_cast<unsigned int>(((*tag_infos)[jet_n]).features().get("pfcand_etarel").size()), minPartFromJSON, maxPartFromJSON);
+            if (toSkipInference && ((*tag_infos)[jet_n]).features().get("pfcand_etarel").size() > 0) toSkipInference = false;
+          } else {
+            entry_target = std::clamp(static_cast<unsigned int>(((*tag_infos)[jet_n]).features().get("sv_etarel").size()), minPartFromJSON, maxPartFromJSON);
+            if (toSkipInference && ((*tag_infos)[jet_n]).features().get("sv_etarel").size() > 0) toSkipInference = false;
+          }
+          input.setShape(1, entry_target, entry = jet_n);
+        }
+        else{
+          input.setShape(1, static_cast<int64_t>(iInput.at(input_names_[igroup - 1]).shape(entry = jet_n)[1]), entry = jet_n);
+        }
       }
+
+      if (toSkipInference){
+        client_.setBatchSize(0);
+        skippedInference_ = true;
+        return;
+      }
+
       auto tdata = input.allocate<float>(true);
       for (unsigned jet_n = 0; jet_n < tag_infos->size(); ++jet_n) {
         const auto &taginfo = (*tag_infos)[jet_n];
@@ -177,7 +179,7 @@ void ParticleNetSonicJetTagsProducer::acquire(edm::Event const &iEvent, edm::Eve
           int insize = center_norm_pad_halfRagged(raw_value,
                                                   info.center,
                                                   info.norm_factor,
-                                                  target,
+                                                  static_cast<unsigned int>(input.shape(entry = jet_n)[1]),
                                                   vdata,
                                                   curr_pos,
                                                   info.pad,
