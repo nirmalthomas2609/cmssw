@@ -142,7 +142,6 @@ void ParticleNetSonicJetTagsProducer::acquire(edm::Event const &iEvent, edm::Eve
     for (unsigned igroup = 0; igroup < input_names_.size(); ++igroup) {
       const auto &group_name = input_names_[igroup];
       auto &input = iInput.at(group_name);
-      unsigned target;
       for(unsigned jet_n = 0; jet_n < tag_infos->size(); ++jet_n){
         if (igroup == 0){
           unsigned entry_target;
@@ -150,7 +149,7 @@ void ParticleNetSonicJetTagsProducer::acquire(edm::Event const &iEvent, edm::Eve
             entry_target = std::clamp(static_cast<unsigned int>(((*tag_infos)[jet_n]).features().get("pfcand_etarel").size()), minPartFromJSON, maxPartFromJSON);
             if (toSkipInference && ((*tag_infos)[jet_n]).features().get("pfcand_etarel").size() > 0) toSkipInference = false;
           } else {
-            entry_target = std::clamp(static_cast<unsigned int>(((*tag_infos)[jet_n]).features().get("sv_etarel").size()), minPartFromJSON, maxPartFromJSON);
+            entry_target = std::clamp(static_cast<unsigned int>(((*tag_infos)[jet_n]).features().get("sv_etarel").size()), minVertFromJSON, maxVertFromJSON);
             if (toSkipInference && ((*tag_infos)[jet_n]).features().get("sv_etarel").size() > 0) toSkipInference = false;
           }
           input.setShape(1, entry_target, jet_n);
