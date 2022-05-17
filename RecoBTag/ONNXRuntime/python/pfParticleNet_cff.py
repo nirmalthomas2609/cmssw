@@ -27,7 +27,7 @@ particleNetSonicTriton.toReplaceWith(pfParticleNetJetTags, _particleNetSonicJetT
     Client = cms.PSet(
         timeout = cms.untracked.uint32(300),
         mode = cms.string("Async"),
-        modelName = cms.string("particlenet"),
+        modelName = cms.string("particlenet_ragged"),
         modelConfigPath = cms.FileInPath("RecoBTag/Combined/data/particlenet_modelsForSonic/particlenet/config.pbtxt"),
         modelVersion = cms.string(""),
         verbose = cms.untracked.bool(False),
@@ -59,7 +59,7 @@ particleNetSonicTriton.toReplaceWith(pfMassDecorrelatedParticleNetJetTags, _part
     preprocess_json = 'RecoBTag/Combined/data/ParticleNetAK8/MD-2prong/V01/preprocess.json',
     Client = cms.PSet(
         timeout = cms.untracked.uint32(300),
-        modelName = cms.string("particlenet_AK8_MD-2prong"),
+        modelName = cms.string("particlenet_AK8_MD-2prong_ragged"),
         mode = cms.string("Async"),
         modelConfigPath = cms.FileInPath("RecoBTag/Combined/data/particlenet_modelsForSonic/particlenet_AK8_MD-2prong/config.pbtxt"),
         modelVersion = cms.string(""),
@@ -89,7 +89,7 @@ particleNetSonicTriton.toReplaceWith(pfParticleNetMassRegressionJetTags, _partic
     preprocess_json = 'RecoBTag/Combined/data/ParticleNetAK8/MassRegression/V01/preprocess.json',
     Client = cms.PSet(
         timeout = cms.untracked.uint32(300),
-        modelName = cms.string("particlenet_AK8_MassRegression"),
+        modelName = cms.string("particlenet_AK8_MassRegression_ragged"),
         mode = cms.string("Async"),
         modelConfigPath = cms.FileInPath("RecoBTag/Combined/data/particlenet_modelsForSonic/particlenet_AK8_MassRegression/config.pbtxt"),
         modelVersion = cms.string(""),
