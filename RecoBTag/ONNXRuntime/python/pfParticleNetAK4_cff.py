@@ -28,7 +28,7 @@ particleNetSonicTriton.toReplaceWith(pfParticleNetAK4JetTags, _particleNetSonicJ
         timeout = cms.untracked.uint32(300),
         mode = cms.string("Async"),
         modelName = cms.string("particlenet_AK4_ragged"),
-        modelConfigPath = cms.FileInPath("RecoBTag/Combined/data/particlenet_modelsForSonic/particlenet_AK4/config.pbtxt"),
+        modelConfigPath = cms.FileInPath("RecoBTag/Combined/data/particlenet_modelsForSonic/particlenet_AK4_ragged/config.pbtxt"),
         modelVersion = cms.string(""),
         verbose = cms.untracked.bool(False),
         allowedTries = cms.untracked.uint32(0),
