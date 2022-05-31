@@ -159,7 +159,7 @@ void ParticleNetSonicJetTagsProducer::acquire(edm::Event const &iEvent, edm::Eve
       }
 
       if (toSkipInference){
-        client_->setBatchSize(0);
+        // client_->setBatchSize(0);
         skippedInference_ = true;
         return;
       }
