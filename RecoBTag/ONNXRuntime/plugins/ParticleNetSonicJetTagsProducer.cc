@@ -141,6 +141,7 @@ void ParticleNetSonicJetTagsProducer::acquire(edm::Event const &iEvent, edm::Eve
     for (unsigned igroup = 0; igroup < input_names_.size(); ++igroup) {
       const auto &group_name = input_names_[igroup];
       auto &input = iInput.at(group_name);
+      client_->setBatchSize(1);
       for(unsigned jet_n = 0; jet_n < tag_infos->size(); ++jet_n){
         if (igroup == 0){
           unsigned entry_target;
@@ -159,7 +160,7 @@ void ParticleNetSonicJetTagsProducer::acquire(edm::Event const &iEvent, edm::Eve
       }
 
       if (toSkipInference){
-        // client_->setBatchSize(0);
+        client_->setBatchSize(0);
         skippedInference_ = true;
         return;
       }
