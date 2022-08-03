@@ -58,7 +58,6 @@ ParticleNetSonicJetTagsProducer::ParticleNetSonicJetTagsProducer(const edm::Para
       flav_names_(iConfig.getParameter<std::vector<std::string>>("flav_names")),
       debug_(iConfig.getUntrackedParameter<bool>("debugMode", false)) {
   ParticleNetConstructor(iConfig, false, input_names_, prep_info_map_, input_shapes_, input_sizes_, nullptr);
-  debug_ = true; //Force set debug to true
   if (debug_) {
     for (unsigned i = 0; i < input_names_.size(); ++i) {
       const auto &group_name = input_names_.at(i);
@@ -131,6 +130,7 @@ void ParticleNetSonicJetTagsProducer::acquire(edm::Event const &iEvent, edm::Eve
   iEvent.getByToken(src_, tag_infos);
   client_->setBatchSize(1);
   skippedInference_ = false;
+  std::cout<<"Count jets = "<<tag_infos->size()<<std::endl;
   if (!tag_infos->empty()) {
     unsigned int minPartFromJSON = prep_info_map_.at(input_names_[0]).min_length;
     unsigned int maxPartFromJSON = prep_info_map_.at(input_names_[0]).max_length;
@@ -141,7 +141,7 @@ void ParticleNetSonicJetTagsProducer::acquire(edm::Event const &iEvent, edm::Eve
     for (unsigned igroup = 0; igroup < input_names_.size(); ++igroup) {
       const auto &group_name = input_names_[igroup];
       auto &input = iInput.at(group_name);
-      client_->setBatchSize(1);
+      // client_->setBatchSize(1);
       for(unsigned jet_n = 0; jet_n < tag_infos->size(); ++jet_n){
         if (igroup == 0){
           unsigned entry_target;
@@ -172,6 +172,9 @@ void ParticleNetSonicJetTagsProducer::acquire(edm::Event const &iEvent, edm::Eve
         const auto &prep_params = prep_info_map_.at(group_name);
         unsigned curr_pos = 0;
         // transform/pad
+
+        std::cout<<"Group Name = "<<group_name<<" | Jet_n - "<<jet_n<<" | Shape - "<<static_cast<unsigned int>(input.shape(jet_n)[1])<<std::endl;
+
         for (unsigned i = 0; i < prep_params.var_names.size(); ++i) {
           const auto &varname = prep_params.var_names[i];
           const auto &raw_value = taginfo.features().get(varname);
@@ -190,7 +193,6 @@ void ParticleNetSonicJetTagsProducer::acquire(edm::Event const &iEvent, edm::Eve
           if (i == 0 && (!input_shapes_.empty())) {
             input_shapes_[igroup][2] = insize;
           }
-          debug_ = true; //Force set debug to true
           if (debug_) {
             std::cout << " -- var=" << varname << ", center=" << info.center << ", scale=" << info.norm_factor
                       << ", replace=" << info.replace_inf_value << ", pad=" << info.pad << std::endl;
@@ -254,7 +256,6 @@ void ParticleNetSonicJetTagsProducer::produce(edm::Event &iEvent,
       }
     }
   }
-  debug_ = true; //Force set debug to true
   if (debug_) {
     std::cout << "=== " << iEvent.id().run() << ":" << iEvent.id().luminosityBlock() << ":" << iEvent.id().event()
               << " ===" << std::endl;
