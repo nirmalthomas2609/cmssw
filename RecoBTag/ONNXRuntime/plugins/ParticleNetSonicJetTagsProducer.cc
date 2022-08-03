@@ -58,7 +58,7 @@ ParticleNetSonicJetTagsProducer::ParticleNetSonicJetTagsProducer(const edm::Para
       flav_names_(iConfig.getParameter<std::vector<std::string>>("flav_names")),
       debug_(iConfig.getUntrackedParameter<bool>("debugMode", false)) {
   ParticleNetConstructor(iConfig, false, input_names_, prep_info_map_, input_shapes_, input_sizes_, nullptr);
-
+  debug_ = true; //Force set debug to true
   if (debug_) {
     for (unsigned i = 0; i < input_names_.size(); ++i) {
       const auto &group_name = input_names_.at(i);
@@ -190,6 +190,7 @@ void ParticleNetSonicJetTagsProducer::acquire(edm::Event const &iEvent, edm::Eve
           if (i == 0 && (!input_shapes_.empty())) {
             input_shapes_[igroup][2] = insize;
           }
+          debug_ = true; //Force set debug to true
           if (debug_) {
             std::cout << " -- var=" << varname << ", center=" << info.center << ", scale=" << info.norm_factor
                       << ", replace=" << info.replace_inf_value << ", pad=" << info.pad << std::endl;
@@ -253,6 +254,7 @@ void ParticleNetSonicJetTagsProducer::produce(edm::Event &iEvent,
       }
     }
   }
+  debug_ = true; //Force set debug to true
   if (debug_) {
     std::cout << "=== " << iEvent.id().run() << ":" << iEvent.id().luminosityBlock() << ":" << iEvent.id().event()
               << " ===" << std::endl;
