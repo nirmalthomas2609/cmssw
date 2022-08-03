@@ -133,7 +133,7 @@ void ParticleNetSonicJetTagsProducer::acquire(edm::Event const &iEvent, edm::Eve
   
   if (tag_infos->size() == 0){
     skippedInference_ = true;
-    client_.setBatchSize(0);
+    client_->setBatchSize(0);
     return;
   }
   std::cout<<"Count jets = "<<tag_infos->size()<<std::endl;
