@@ -130,7 +130,13 @@ void ParticleNetSonicJetTagsProducer::acquire(edm::Event const &iEvent, edm::Eve
   iEvent.getByToken(src_, tag_infos);
   client_->setBatchSize(1);
   skippedInference_ = false;
-  std::cout<<"Count jets = "<<tag_infos->size()<<std::endl;
+  
+  if (tag_infos->size() == 0){
+    skippedInference_ = true;
+    client_.setBatchSize(0);
+    return;
+  }
+  std::cout<<"Count jets = "<<tag_infos->size()<<endl;
   if (!tag_infos->empty()) {
     unsigned int minPartFromJSON = prep_info_map_.at(input_names_[0]).min_length;
     unsigned int maxPartFromJSON = prep_info_map_.at(input_names_[0]).max_length;
