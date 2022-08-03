@@ -130,13 +130,7 @@ void ParticleNetSonicJetTagsProducer::acquire(edm::Event const &iEvent, edm::Eve
   iEvent.getByToken(src_, tag_infos);
   client_->setBatchSize(1);
   skippedInference_ = false;
-  
-  if (tag_infos->size() == 0){
-    skippedInference_ = true;
-    client_->setBatchSize(0);
-    return;
-  }
-  std::cout<<"Count jets = "<<tag_infos->size()<<std::endl;
+
   if (!tag_infos->empty()) {
     unsigned int minPartFromJSON = prep_info_map_.at(input_names_[0]).min_length;
     unsigned int maxPartFromJSON = prep_info_map_.at(input_names_[0]).max_length;
@@ -179,8 +173,6 @@ void ParticleNetSonicJetTagsProducer::acquire(edm::Event const &iEvent, edm::Eve
         unsigned curr_pos = 0;
         // transform/pad
 
-        std::cout<<"Group Name = "<<group_name<<" | Jet_n - "<<jet_n<<" | Shape - "<<static_cast<unsigned int>(input.shape(jet_n)[1])<<std::endl;
-
         for (unsigned i = 0; i < prep_params.var_names.size(); ++i) {
           const auto &varname = prep_params.var_names[i];
           const auto &raw_value = taginfo.features().get(varname);
@@ -211,6 +203,11 @@ void ParticleNetSonicJetTagsProducer::acquire(edm::Event const &iEvent, edm::Eve
       }
       input.toServer(tdata);
     }
+  }
+  else{
+    client_->setBatchSize(0);
+    skippedInference_ = true;
+    return;
   }
 }
 
