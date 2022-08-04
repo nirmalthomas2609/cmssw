@@ -203,6 +203,10 @@ void ParticleNetSonicJetTagsProducer::acquire(edm::Event const &iEvent, edm::Eve
       input.toServer(tdata);
     }
   }
+  else{
+    client_->setBatchSize(0);
+    skippedInference_ = true;
+  }
 }
 
 void ParticleNetSonicJetTagsProducer::produce(edm::Event &iEvent,
