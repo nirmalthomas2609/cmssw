@@ -129,7 +129,7 @@ void ParticleNetSonicJetTagsProducer::fillDescriptions(edm::ConfigurationDescrip
 void ParticleNetSonicJetTagsProducer::acquire(edm::Event const &iEvent, edm::EventSetup const &iSetup, Input &iInput) {
   edm::Handle<TagInfoCollection> tag_infos;
   iEvent.getByToken(src_, tag_infos);
-  client_->setBatchSize(1);
+  client_->setBatchSize(tag_infos->size());
   skippedInference_ = false;
   if (!tag_infos->empty()) {
     unsigned int minPartFromJSON = prep_info_map_.at(input_names_[0]).min_length;
@@ -141,7 +141,6 @@ void ParticleNetSonicJetTagsProducer::acquire(edm::Event const &iEvent, edm::Eve
     for (unsigned igroup = 0; igroup < input_names_.size(); ++igroup) {
       const auto &group_name = input_names_[igroup];
       auto &input = iInput.at(group_name);
-      client_->setBatchSize(1);
       for(unsigned jet_n = 0; jet_n < tag_infos->size(); ++jet_n){
         if (igroup == 0){
           unsigned entry_target;
