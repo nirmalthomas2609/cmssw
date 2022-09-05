@@ -38,6 +38,8 @@ namespace {
 
 TritonClient::TritonClient(const edm::ParameterSet& params, const std::string& debugName)
     : SonicClient(params, debugName, "TritonClient"),
+      batchMode_(TritonBatchMode::Rectangular),
+      manualBatchMode_(false),
       verbose_(params.getUntrackedParameter<bool>("verbose")),
       useSharedMemory_(params.getUntrackedParameter<bool>("useSharedMemory")),
       compressionAlgo_(getCompressionAlgo(params.getUntrackedParameter<std::string>("compression"))) {
@@ -71,12 +73,14 @@ TritonClient::TritonClient(const edm::ParameterSet& params, const std::string& d
   inference::ModelConfig modelConfig(modelConfigResponse.config());
 
   //check batch size limitations (after i/o setup)
-  //triton uses max batch size = 0 to denote a model that does not support batching
-  //but for models that do support batching, a given event may set batch size 0 to indicate no valid input is present
-  //so set the local max to 1 and keep track of "no batch" case
-  maxBatchSize_ = modelConfig.max_batch_size();
-  noBatch_ = maxBatchSize_ == 0;
-  maxBatchSize_ = std::max(1u, maxBatchSize_);
+  //triton uses max batch size = 0 to denote a model that does not support native batching (using the outer dimension)
+  //but for models that do support batching (native or otherwise), a given event may set batch size 0 to indicate no valid input is present
+  //so set the local max to 1 and keep track of "no outer dim" case
+  maxOuterDim_ = modelConfig.max_batch_size();
+  noOuterDim_ = maxOuterDim_ == 0;
+  maxOuterDim_ = std::max(1u, maxOuterDim_);
+  //propagate batch size
+  setBatchSize(1);
 
   //get model info
   inference::ModelMetadataResponse modelMetadata;
@@ -149,15 +153,12 @@ TritonClient::TritonClient(const edm::ParameterSet& params, const std::string& d
     throw cms::Exception("MissingOutput")
         << "Some requested outputs were not available on the server: " << triton_utils::printColl(s_outputs);
 
-  //propagate batch size to inputs and outputs
-  setBatchSize(1);
-
   //print model info
   std::stringstream model_msg;
   if (verbose_) {
     model_msg << "Model name: " << options_[0].model_name_ << "\n"
               << "Model version: " << options_[0].model_version_ << "\n"
-              << "Model max batch size: " << (noBatch_ ? 0 : maxBatchSize_) << "\n";
+              << "Model max outer dim: " << (noOuterDim_ ? 0 : maxOuterDim_) << "\n";
     edm::LogInfo(fullDebugName_) << model_msg.str() << io_msg.str();
   }
 }
@@ -171,21 +172,58 @@ TritonClient::~TritonClient() {
   output_.clear();
 }
 
+void TritonClient::setBatchMode(TritonBatchMode batchMode) {
+  unsigned oldBatchSize = batchSize();
+  batchMode_ = batchMode;
+  manualBatchMode_ = true;
+  //this allows calling setBatchSize() and setBatchMode() in either order consistently to change back and forth
+  //includes handling of change from ragged to rectangular if multiple entries already created
+  setBatchSize(oldBatchSize);
+}
+
+void TritonClient::resetBatchMode() {
+  batchMode_ = TritonBatchMode::Rectangular;
+  manualBatchMode_ = false;
+}
+
+unsigned TritonClient::nEntries() const {
+  return !input_.empty() ? input_.begin()->second.entries_.size() : 0;
+}
+
+unsigned TritonClient::batchSize() const {
+  return batchMode_==TritonBatchMode::Rectangular ? outerDim_ : nEntries();
+}
+
 bool TritonClient::setBatchSize(unsigned bsize) {
-  if (bsize > maxBatchSize_) {
-    edm::LogWarning(fullDebugName_) << "Requested batch size " << bsize << " exceeds server-specified max batch size "
-                                    << maxBatchSize_ << ". Batch size will remain as" << batchSize_;
-    return false;
+  if (batchMode_==TritonBatchMode::Rectangular) {
+    if (bsize > maxOuterDim_) {
+      edm::LogWarning(fullDebugName_) << "Requested batch size " << bsize << " exceeds server-specified max batch size "
+                                      << maxOuterDim_ << ". Batch size will remain as " << outerDim_;
+      return false;
+    } else {
+      outerDim_ = bsize;
+      //take min to allow resizing to 0
+      resizeEntries(std::min(outerDim_,1u));
+      return true;
+    }
   } else {
-    batchSize_ = bsize;
-    //set for input and output
+    resizeEntries(bsize);
+    outerDim_ = 1;
+    return true;
+  }
+}
+
+void TritonClient::resizeEntries(unsigned entry) {
+  if (entry > nEntries())
+    //addEntry(entry) extends the vector to size entry+1
+    addEntry(entry-1);
+  else if (entry < nEntries()) {
     for (auto& element : input_) {
-      element.second.setBatchSize(bsize);
+      element.second.entries_.resize(entry);
     }
     for (auto& element : output_) {
-      element.second.setBatchSize(bsize);
+      element.second.entries_.resize(entry);
     }
-    return true;
   }
 }
 
@@ -196,11 +234,15 @@ void TritonClient::addEntry(unsigned entry) {
   for (auto& element : output_) {
     element.second.addEntryImpl(entry);
   }
-  if (entry>0)
-    setBatchSize(1);
+  if (entry>0) {
+    batchMode_ = TritonBatchMode::Ragged;
+    outerDim_ = 1;
+  }
 }
 
 void TritonClient::reset() {
+  if (!manualBatchMode_)
+    batchMode_ = TritonBatchMode::Rectangular;
   for (auto& element : input_) {
     element.second.reset();
   }
@@ -237,7 +279,7 @@ void TritonClient::getResults(std::vector<tc::InferResult*>& results) {
       if (output.variableDims()) {
         std::vector<int64_t> tmp_shape;
         TRITON_THROW_IF_ERROR(result->Shape(oname, &tmp_shape), "getResults(): unable to get output shape for " + oname);
-        if (!noBatch_)
+        if (!noOuterDim_)
           tmp_shape.erase(tmp_shape.begin());
         output.setShape(tmp_shape,i);
       }
@@ -252,31 +294,34 @@ void TritonClient::getResults(std::vector<tc::InferResult*>& results) {
 //default case for sync and pseudo async
 void TritonClient::evaluate() {
   //in case there is nothing to process
-  if (batchSize_ == 0) {
+  if (batchSize() == 0) {
+    //call getResults on an empty vector
+    std::vector<tc::InferResult*> empty_results;
+    getResults(empty_results);
     finish(true);
     return;
   }
 
   //set up input pointers for triton (generalized for multi-request ragged batching case)
   //one vector<InferInput*> per request
-  unsigned nEntries = input_.begin()->second.entries_.size();
-  std::vector<std::vector<triton::client::InferInput*>> inputsTriton(nEntries);
+  unsigned nEntriesVal = nEntries();
+  std::vector<std::vector<triton::client::InferInput*>> inputsTriton(nEntriesVal);
   for (auto& inputTriton : inputsTriton) {
     inputTriton.reserve(input_.size());
   }
   for (auto& [iname, input] : input_) {
-    for (unsigned i = 0; i < nEntries; ++i){
+    for (unsigned i = 0; i < nEntriesVal; ++i){
       inputsTriton[i].push_back(input.data(i));
     }
   }
 
   //set up output pointers similarly
-  std::vector<std::vector<const triton::client::InferRequestedOutput*>> outputsTriton(nEntries);
+  std::vector<std::vector<const triton::client::InferRequestedOutput*>> outputsTriton(nEntriesVal);
   for (auto& outputTriton : outputsTriton) {
     outputTriton.reserve(output_.size());
   }
   for (auto& [oname, output] : output_) {
-    for (unsigned i = 0; i < nEntries; ++i){
+    for (unsigned i = 0; i < nEntriesVal; ++i){
       outputsTriton[i].push_back(output.data(i));
     }
   }

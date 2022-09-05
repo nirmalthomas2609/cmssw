@@ -71,7 +71,6 @@ public:
   const ShapeView& shape(unsigned entry=0) const { return entries_.at(entry).shape_; }
   int64_t byteSize() const { return byteSize_; }
   const std::string& dname() const { return dname_; }
-  unsigned batchSize() const { return batchSize_; }
 
   //utilities
   bool variableDims() const { return variableDims_; }
@@ -93,9 +92,9 @@ private:
   class TritonDataEntry {
     public:
       //constructors
-      TritonDataEntry(const ShapeType& dims, bool noBatch, const std::string& name, const std::string& dname)
+      TritonDataEntry(const ShapeType& dims, bool noOuterDim, const std::string& name, const std::string& dname)
           : fullShape_(dims),
-            shape_(fullShape_.begin() + (noBatch ? 0 : 1), fullShape_.end()),
+            shape_(fullShape_.begin() + (noOuterDim ? 0 : 1), fullShape_.end()),
             sizeShape_(0),
             byteSizePerBatch_(0),
             totalByteSize_(0),
@@ -106,6 +105,14 @@ private:
         createObject(&iotmp, name, dname);
         data_.reset(iotmp);
       }
+      //default needed to be able to use std::vector resize()
+      TritonDataEntry()
+          : shape_(fullShape_.begin(), fullShape_.end()),
+            sizeShape_(0),
+            byteSizePerBatch_(0),
+            totalByteSize_(0),
+            offset_(0),
+            output_(nullptr) { }
 
     private:
       friend class TritonData<IO>;
@@ -133,9 +140,7 @@ private:
 
   //private accessors only used internally or by client
   void checkShm() {}
-  unsigned fullLoc(unsigned loc) const { return loc + (noBatch_ ? 0 : 1); }
-  void setBatchSize(unsigned bsize);
-  size_t getEntrySize() const { return std::max(static_cast<size_t>(batchSize_), entries_.size()); }
+  unsigned fullLoc(unsigned loc) const;
   void reset();
   void setResult(Result* result, unsigned entry=0) { entries_[entry].result_.reset(result); }
   IO* data(unsigned entry=0) { return entries_[entry].data_.get(); }
@@ -154,7 +159,8 @@ private:
     return std::any_of(vec.begin(), vec.end(), [](int64_t i) { return i < 0; });
   }
   int64_t dimProduct(const ShapeView& vec) const {
-    return std::accumulate(vec.begin(), vec.end(), 1, std::multiplies<int64_t>());
+    //lambda treats negative dimensions as 0 to avoid overflows
+    return std::accumulate(vec.begin(), vec.end(), 1, [](int64_t dim1, int64_t dim2){ return dim1*std::max(0l,dim2); });
   }
   //generates a unique id number for each instance of the class
   unsigned uid() const {
@@ -171,8 +177,6 @@ private:
   bool useShm_;
   std::string shmName_;
   const ShapeType dims_;
-  bool noBatch_;
-  unsigned batchSize_;
   bool variableDims_;
   int64_t productDims_;
   std::string dname_;
