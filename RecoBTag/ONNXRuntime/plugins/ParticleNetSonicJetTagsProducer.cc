@@ -132,37 +132,38 @@ void ParticleNetSonicJetTagsProducer::acquire(edm::Event const &iEvent, edm::Eve
   client_->setBatchSize(tag_infos->size());
   skippedInference_ = false;
   if (!tag_infos->empty()) {
-    unsigned int maxParticles = 0;
-    unsigned int maxVertices = 0;
-    for (unsigned jet_n = 0; jet_n < tag_infos->size(); ++jet_n) {
-      maxParticles = std::max(maxParticles,
-                              static_cast<unsigned int>(((*tag_infos)[jet_n]).features().get("pfcand_etarel").size()));
-      maxVertices =
-          std::max(maxVertices, static_cast<unsigned int>(((*tag_infos)[jet_n]).features().get("sv_etarel").size()));
-    }
-    if (maxParticles == 0 && maxVertices == 0) {
-      client_->setBatchSize(0);
-      skippedInference_ = true;
-      return;
-    }
     unsigned int minPartFromJSON = prep_info_map_.at(input_names_[0]).min_length;
     unsigned int maxPartFromJSON = prep_info_map_.at(input_names_[0]).max_length;
     unsigned int minVertFromJSON = prep_info_map_.at(input_names_[3]).min_length;
     unsigned int maxVertFromJSON = prep_info_map_.at(input_names_[3]).max_length;
-    maxParticles = std::clamp(maxParticles, minPartFromJSON, maxPartFromJSON);
-    maxVertices = std::clamp(maxVertices, minVertFromJSON, maxVertFromJSON);
+    bool toSkipInference = true;
 
     for (unsigned igroup = 0; igroup < input_names_.size(); ++igroup) {
       const auto &group_name = input_names_[igroup];
       auto &input = iInput.at(group_name);
-      unsigned target;
-      if (igroup < numParticleGroups_) {
-        input.setShape(1, maxParticles);
-        target = maxParticles;
-      } else {
-        input.setShape(1, maxVertices);
-        target = maxVertices;
+      for(unsigned jet_n = 0; jet_n < tag_infos->size(); ++jet_n){
+        if (igroup == 0){
+          unsigned entry_target;
+          if (igroup < numParticleGroups_) {
+            entry_target = std::clamp(static_cast<unsigned int>(((*tag_infos)[jet_n]).features().get("pfcand_etarel").size()), minPartFromJSON, maxPartFromJSON);
+            if (toSkipInference && ((*tag_infos)[jet_n]).features().get("pfcand_etarel").size() > 0) toSkipInference = false;
+          } else {
+            entry_target = std::clamp(static_cast<unsigned int>(((*tag_infos)[jet_n]).features().get("sv_etarel").size()), minVertFromJSON, maxVertFromJSON);
+            if (toSkipInference && ((*tag_infos)[jet_n]).features().get("sv_etarel").size() > 0) toSkipInference = false;
+          }
+          input.setShape(1, entry_target, jet_n);
+        }
+        else{
+          input.setShape(1, static_cast<int64_t>(iInput.at(input_names_[igroup - 1]).shape(jet_n)[1]), jet_n);
+        }
       }
+
+      if (toSkipInference){
+        client_->setBatchSize(0);
+        skippedInference_ = true;
+        return;
+      }
+
       auto tdata = input.allocate<float>(true);
       for (unsigned jet_n = 0; jet_n < tag_infos->size(); ++jet_n) {
         const auto &taginfo = (*tag_infos)[jet_n];
@@ -177,7 +178,7 @@ void ParticleNetSonicJetTagsProducer::acquire(edm::Event const &iEvent, edm::Eve
           int insize = center_norm_pad_halfRagged(raw_value,
                                                   info.center,
                                                   info.norm_factor,
-                                                  target,
+                                                  static_cast<unsigned int>(input.shape(jet_n)[1]),
                                                   vdata,
                                                   curr_pos,
                                                   info.pad,
@@ -188,20 +189,22 @@ void ParticleNetSonicJetTagsProducer::acquire(edm::Event const &iEvent, edm::Eve
           if (i == 0 && (!input_shapes_.empty())) {
             input_shapes_[igroup][2] = insize;
           }
-
           if (debug_) {
-            LogDebug("acquire") << "<ParticleNetSonicJetTagsProducer::produce>:" << std::endl
-                                << " -- var=" << varname << ", center=" << info.center << ", scale=" << info.norm_factor
-                                << ", replace=" << info.replace_inf_value << ", pad=" << info.pad << std::endl;
+            std::cout << " -- var=" << varname << ", center=" << info.center << ", scale=" << info.norm_factor
+                      << ", replace=" << info.replace_inf_value << ", pad=" << info.pad << std::endl;
             for (unsigned i = curr_pos - insize; i < curr_pos; i++) {
-              LogDebug("acquire") << vdata[i] << ",";
+              std::cout << vdata[i] << ",";
             }
-            LogDebug("acquire") << std::endl;
+            std::cout << std::endl;
           }
         }
       }
       input.toServer(tdata);
     }
+  }
+  else{
+    client_->setBatchSize(0);
+    skippedInference_ = true;
   }
 }
 
