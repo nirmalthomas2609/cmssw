@@ -130,7 +130,7 @@ void ParticleNetSonicJetTagsProducer::acquire(edm::Event const &iEvent, edm::Eve
   edm::Handle<TagInfoCollection> tag_infos;
   iEvent.getByToken(src_, tag_infos);
   client_->setBatchSize(tag_infos->size());
-  skippedInference_ = false;
+  // skippedInference_ = false;
   if (!tag_infos->empty()) {
     unsigned int minPartFromJSON = prep_info_map_.at(input_names_[0]).min_length;
     unsigned int maxPartFromJSON = prep_info_map_.at(input_names_[0]).max_length;
@@ -160,7 +160,7 @@ void ParticleNetSonicJetTagsProducer::acquire(edm::Event const &iEvent, edm::Eve
 
       if (toSkipInference){
         client_->setBatchSize(0);
-        skippedInference_ = true;
+        // skippedInference_ = true;
         return;
       }
 
@@ -190,12 +190,12 @@ void ParticleNetSonicJetTagsProducer::acquire(edm::Event const &iEvent, edm::Eve
             input_shapes_[igroup][2] = insize;
           }
           if (debug_) {
-            std::cout << " -- var=" << varname << ", center=" << info.center << ", scale=" << info.norm_factor
+            LogDebug("accquire") << " -- var=" << varname << ", center=" << info.center << ", scale=" << info.norm_factor
                       << ", replace=" << info.replace_inf_value << ", pad=" << info.pad << std::endl;
             for (unsigned i = curr_pos - insize; i < curr_pos; i++) {
-              std::cout << vdata[i] << ",";
+              LogDebug("accquire") << vdata[i] << ",";
             }
-            std::cout << std::endl;
+            LogDebug("accquire") << std::endl;
           }
         }
       }
@@ -204,7 +204,7 @@ void ParticleNetSonicJetTagsProducer::acquire(edm::Event const &iEvent, edm::Eve
   }
   else{
     client_->setBatchSize(0);
-    skippedInference_ = true;
+    // skippedInference_ = true;
   }
 }
 
