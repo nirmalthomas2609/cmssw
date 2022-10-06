@@ -190,12 +190,12 @@ void ParticleNetSonicJetTagsProducer::acquire(edm::Event const &iEvent, edm::Eve
             input_shapes_[igroup][2] = insize;
           }
           if (debug_) {
-            LogDebug("accquire") << " -- var=" << varname << ", center=" << info.center << ", scale=" << info.norm_factor
+            LogDebug("acquire") << " -- var=" << varname << ", center=" << info.center << ", scale=" << info.norm_factor
                       << ", replace=" << info.replace_inf_value << ", pad=" << info.pad << std::endl;
             for (unsigned i = curr_pos - insize; i < curr_pos; i++) {
-              LogDebug("accquire") << vdata[i] << ",";
+              LogDebug("acquire") << vdata[i] << ",";
             }
-            LogDebug("accquire") << std::endl;
+            LogDebug("acquire") << std::endl;
           }
         }
       }
