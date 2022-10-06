@@ -48,7 +48,6 @@ private:
   std::vector<unsigned> input_sizes_;               // total length of each input vector
   std::unordered_map<std::string, PreprocessParams> prep_info_map_;  // preprocessing info for each input group
   bool debug_ = false;
-  bool skippedInference_ = false;
   constexpr static unsigned numParticleGroups_ = 3;
 };
 
@@ -130,7 +129,6 @@ void ParticleNetSonicJetTagsProducer::acquire(edm::Event const &iEvent, edm::Eve
   edm::Handle<TagInfoCollection> tag_infos;
   iEvent.getByToken(src_, tag_infos);
   client_->setBatchSize(tag_infos->size());
-  skippedInference_ = false;
   if (!tag_infos->empty()) {
     unsigned int minPartFromJSON = prep_info_map_.at(input_names_[0]).min_length;
     unsigned int maxPartFromJSON = prep_info_map_.at(input_names_[0]).max_length;
@@ -160,7 +158,6 @@ void ParticleNetSonicJetTagsProducer::acquire(edm::Event const &iEvent, edm::Eve
 
       if (toSkipInference){
         client_->setBatchSize(0);
-        skippedInference_ = true;
         return;
       }
 
@@ -204,7 +201,6 @@ void ParticleNetSonicJetTagsProducer::acquire(edm::Event const &iEvent, edm::Eve
   }
   else{
     client_->setBatchSize(0);
-    skippedInference_ = true;
   }
 }
 
@@ -229,7 +225,7 @@ void ParticleNetSonicJetTagsProducer::produce(edm::Event &iEvent,
   }
 
   if (!tag_infos->empty()) {
-    if (!skippedInference_) {
+    if (client_->batchSize() == 0) {
       const auto &output1 = iOutput.begin()->second;
       const auto &outputs_from_server = output1.fromServer<float>();
 
